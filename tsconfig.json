@@ -8,6 +8,24 @@
     },
     {
       "path": "./apps/eventExp"
+    },
+    {
+      "path": "./apps/frontend/my-new-app-e2e"
+    },
+    {
+      "path": "./apps/frontend/my-new-app"
+    },
+    {
+      "path": "./apps/misc-e2e"
+    },
+    {
+      "path": "./apps/misc"
+    },
+    {
+      "path": "./apps/misc/frontend-qa-demo-e2e"
+    },
+    {
+      "path": "./apps/misc/frontend-qa-demo"
     }
   ]
 }

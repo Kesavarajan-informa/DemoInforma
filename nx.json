@@ -74,7 +74,7 @@
   ],
   "targetDefaults": {
     "test": {
-      "dependsOn": ["^build"]  
+      "dependsOn": ["^build"]
     }
   },
   "generators": {
@@ -91,6 +91,18 @@
       "library": {
         "style": "tailwind",
         "linter": "eslint"
+      }
+    }
+  },
+  "release": {
+    "projectsRelationship": "independent",
+    "releaseTagPattern": "release/{projectName}/{version}",
+    "changelog": {
+      "projectChangelogs": true
+    },
+    "groups": {
+      "apps": {
+        "projects": ["apps/**"]
       }
     }
   }

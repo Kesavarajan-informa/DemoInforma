@@ -1,0 +1,10 @@
+{
+  "name": "@org-informa/frontend-qa-demo-e2e",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "implicitDependencies": [
+      "@org-informa/frontend-qa-demo"
+    ]
+  }
+}
