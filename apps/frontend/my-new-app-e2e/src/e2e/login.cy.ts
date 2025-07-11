@@ -1,7 +1,7 @@
 import { getGreeting } from '../support/app.po';
 
 describe('@org-informa/my-new-app-e2e', () => {
-  beforeEach(() => cy.visit('/'));
+  beforeEach(() => cy.visit('https://visitcloud.com/contact-visit/'));
 
   it('should display welcome message', () => {
     // Custom command example, see `../support/commands.ts` file
@@ -11,4 +11,3 @@ describe('@org-informa/my-new-app-e2e', () => {
     getGreeting().contains(/Welcome/);
   });
 });
-
