@@ -20,12 +20,6 @@
     },
     {
       "path": "./apps/misc"
-    },
-    {
-      "path": "./apps/misc/frontend-qa-demo-e2e"
-    },
-    {
-      "path": "./apps/misc/frontend-qa-demo"
     }
   ]
 }

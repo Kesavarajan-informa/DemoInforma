@@ -2,6 +2,10 @@
   "name": "@org-informa/my-new-app-e2e",
   "version": "2.0.0",
   "private": true,
+
+ 
+  
+
   "nx": {
     "implicitDependencies": [
       "@org-informa/my-new-app"
