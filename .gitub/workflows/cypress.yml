@@ -1,28 +1,293 @@
----
-name: Cypress BDD Tests
+name: Run Cypress Tests
 on:
-  push:
-    branches:
-      - feature/cypressIntegration
-  pull_request:
-    branches:
-      - feature/cypressIntegration
+  workflow_run:
+    workflows: ["PR merge workflow"]
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      ENVIRONMENT_TO_RUN:
+        description: 'Environment'
+        required: true
 jobs:
-  cypress-run:
-    runs-on: ubuntu-latest
+  cypress-tests:
+    runs-on: [self-hosted, Standard]
+    env:
+      NODE_ENV: ${{ github.event.inputs.ENVIRONMENT_TO_RUN || 'development' }}
+      DAY_OF_WEEK: 0
+      BROWSER: unknown      
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - name: Display Environment
+        run: echo $NODE_ENV   
+      - name: Get Day of Week
+        run: echo "DAY_OF_WEEK=$(date +'%u')" >> $GITHUB_ENV       
+      - name: Display Day of Week
+        run: echo $DAY_OF_WEEK           
+      - name: Set Edge Browser
+        if: (env.DAY_OF_WEEK == 1) || (env.DAY_OF_WEEK == 3) ||  (env.DAY_OF_WEEK == 5) || (env.DAY_OF_WEEK == 7) 
+        run: echo "BROWSER=edge" >> $GITHUB_ENV
+      - name: Set Chrome Browser
+        if: (env.DAY_OF_WEEK == 2) || (env.DAY_OF_WEEK == 4) ||  (env.DAY_OF_WEEK == 6)
+        run: echo "BROWSER=chrome" >> $GITHUB_ENV            
+      - name: Display Variables
+        run: echo "$DAY_OF_WEEK $BROWSER"
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
         with:
-          node-version: "18"
-      - name: Install dependencies
-        run: npm ci
-      - name: Run Cypress Tests
-        run: npm run test
-      - name: Upload test report
-        uses: actions/upload-artifacts@v3
+          role-external-id: ${{ secrets.ORG_RUNNER_AWS_EXTERNALID }}
+          role-to-assume: arn:aws:iam::597123819409:role/vtx-GitHubActions
+          aws-region: us-east-2
+          role-skip-session-tagging: true
+      - name: Install traceroute
+        run: apt-get install -y traceroute
+      - name: Run ping
+        run: |
+          ping -c 10 10.10.48.162
+        continue-on-error: true
+      - name: Run traceroute
+        run: |
+          traceroute 10.10.48.162
+        continue-on-error: true
+      - name: Run ip route
+        run: |
+          ip route
+        continue-on-error: true
+      - name: Install Cypress Chrome prerequisites
+        if: env.BROWSER == 'chrome'
+        run: apt-get install -y libgtk2.0-0 libgtk-3-0 libgbm-dev libnotify-dev libgconf-2-4 libnss3 libxss1 libasound2 libxtst6 xauth xvfb fonts-liberation xdg-utils
+      - name: Setup Chrome
+        if: env.BROWSER == 'chrome'
+        uses: browser-actions/setup-chrome@latest
+      - name: Install Chrome
+        if: env.BROWSER == 'chrome'
+        run: wget -O /usr/src/google-chrome-stable_current_amd64.deb "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb" &&   dpkg -i /usr/src/google-chrome-stable_current_amd64.deb ;   apt-get install -f -y &&   rm -f /usr/src/google-chrome-stable_current_amd64.deb
+      - name: Install Cypress prerequisites
+        if: env.BROWSER == 'edge'
+        run: apt-get install -y libgtk2.0-0 libgtk-3-0 libgbm-dev libnotify-dev libgconf-2-4 libnss3 libxss1 libasound2 libxtst6 xauth xvfb fonts-liberation xdg-utils gnupg
+      - name: Install Edge
+        if: env.BROWSER == 'edge'
+        run: |
+          curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg
+          sudo install -o root -g root -m 644 microsoft.gpg /etc/apt/trusted.gpg.d/
+          sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/edge stable main" > /etc/apt/sources.list.d/microsoft-edge-dev.list'
+          sudo rm microsoft.gpg
+          sudo apt update && sudo apt install -y microsoft-edge-stable
+      - name: Configure Linux
+        run: echo 16384 | sudo tee /proc/sys/fs/inotify/max_user_watches
+      - uses: actions/checkout@v2
+      - uses: actions/setup-java@v3
         with:
-          name: cypress-report
-          path: cypress/reports/html
+          distribution: 'temurin' # See 'Supported distributions' for available options
+          java-version: '17'
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '16.15.0'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@vertexinc'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GIT_PACKAGE_TOKEN }}
+      - id: install-dependencies
+        name: Install dependencies
+        uses: bahmutov/npm-install@v1
+      - name: Install dependencies (failure)
+        if: failure() && steps.install-dependencies.outcome == 'failure'
+        run: echo 'If a @vertexinc-scoped package failed to install, please ensure that the SystemTeamAutomation GitHub user has access to the repository that failed to install.  The GIT_PACKAGE_TOKEN secret (which is necessary to authorize the `npm install` command) is owned by that account and is only available to repos that that account has access to.'
+      - name: Build
+        run: npm run build:${{ env.NODE_ENV }}
+      - id: cypress-mocked-api-tests
+        name: Cypress mocked-api tests
+        uses: cypress-io/github-action@v2
+        with:
+          wait-on: 'https://localhost:9001/${{ github.event.repository.name }}.js'
+          wait-on-timeout: 300
+          start: npm run start:${{ env.NODE_ENV }}
+          command: npm run cypress:run:${{ env.BROWSER }}:${{ env.NODE_ENV }}
+          install: false
+        env:
+          NODE_TLS_REJECT_UNAUTHORIZED: 0
+          cypress_accessKeyId: ${{ env.AWS_ACCESS_KEY_ID }}
+          cypress_secretAccessKey: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          cypress_awsSessionToken: ${{ env.AWS_SESSION_TOKEN }}
+      - name: Report Cypress Mocked API Failure Generate & Teams
+        if: failure() && steps.cypress-mocked-api-tests.outcome == 'failure'
+        run: npm run report:allure:generate && npm run report:teams && npm run report:teams:ext      
+      - name:  Report Cypress Mocked API Failure AWS S3
+        if: failure() && steps.cypress-mocked-api-tests.outcome == 'failure'
+        run: npm run report:allure:s3
+      - name:  Report Cypress Mocked API Failure FTP
+        if: failure() && steps.cypress-mocked-api-tests.outcome == 'failure'
+        uses: SamKirkland/FTP-Deploy-Action@4.3.0
+        with:
+          server: ftp.dutoit.ws
+          username: "vertex"
+          password: "VERTEX_pw0rd!"
+          port: 21
+          local-dir: "./allure-report/"
+          server-dir: "/taxcat/cypress/" 
+          dangerous-clean-slate: true          
+      - name: Cypress mocked-api tests (failure)
+        if: failure() && steps.cypress-mocked-api-tests.outcome == 'failure'
+        uses: actions/upload-artifact@v2
+        with:
+          name: cypress-mocked-api-artifacts
+          path: |
+            cypress/videos
+            cypress/screenshots
+          retention-days: 1
+      - id: cypress-e2e-tests
+        name: Cypress end-to-end tests
+        uses: cypress-io/github-action@v2
+        with:
+          wait-on: 'https://localhost:9001/${{ github.event.repository.name }}.js'
+          wait-on-timeout: 300
+          start: npm run start:${{ env.NODE_ENV }}
+          command: npm run cypress:run:e2e:${{ env.BROWSER }}:${{ env.NODE_ENV }}
+          install: false
+        env:
+          NODE_TLS_REJECT_UNAUTHORIZED: 0
+          cypress_accessKeyId: ${{ env.AWS_ACCESS_KEY_ID }}
+          cypress_secretAccessKey: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          cypress_awsSessionToken: ${{ env.AWS_SESSION_TOKEN }}
+      - name: Report Cypress E2E Failure Generate & Teams
+        if: failure() && steps.cypress-e2e-tests.outcome == 'failure'
+        run: npm run report:allure:generate && npm run report:teams && npm run report:teams:ext       
+      - name: Report Cypress E2E Failure AWS S3
+        if: failure() && steps.cypress-e2e-tests.outcome == 'failure'
+        run: npm run report:allure:s3
+      - name: Report Cypress E2E Failure FTP
+        if: failure() && steps.cypress-e2e-tests.outcome == 'failure'
+        uses: SamKirkland/FTP-Deploy-Action@4.3.0
+        with:
+          server: ftp.dutoit.ws
+          username: "vertex"
+          password: "VERTEX_pw0rd!"
+          port: 21
+          local-dir: "./allure-report/"
+          server-dir: "/taxcat/cypress/" 
+          dangerous-clean-slate: true        
+      - name: Cypress end-to-end tests (failure)
+        if: failure() && steps.cypress-e2e-tests.outcome == 'failure'
+        uses: actions/upload-artifact@v2
+        with:
+          name: cypress-e2e-artifacts
+          path: |
+            cypress/videos
+            cypress/screenshots
+          retention-days: 1
+      - name: Report Cypress Success Generate
+        run: npm run report:allure:generate
+      - name: Report Cypress Success AWS S3
+        run: npm run report:allure:s3
+      - name: Report Cypress Success FTP
+        uses: SamKirkland/FTP-Deploy-Action@4.3.0
+        with:
+          server: ftp.dutoit.ws
+          username: "vertex"
+          password: "VERTEX_pw0rd!"
+          port: 21
+          local-dir: "./allure-report/"
+          server-dir: "/taxcat/cypress/" 
+          dangerous-clean-slate: true
+      - name: Coverage Report Generate
+        run: npm run coverage:report && npm run report:coverage:teams && npm run report:coverage:teams:ext
+      - name: Report Coverage AWS S3
+        run: npm run report:coverate:s3
+      - name: Report Coverage FTP
+        uses: SamKirkland/FTP-Deploy-Action@4.3.0
+        with:
+          server: ftp.dutoit.ws
+          username: "vertex"
+          password: "VERTEX_pw0rd!"
+          port: 21
+          local-dir: "./coverage/lcov-report/"
+          server-dir: "/taxcat/coverage/" 
+          dangerous-clean-slate: true
+      - name: Teams
+        run: npm run report:teams
+  on-prem-tests:
+    runs-on: [on-prem, Linux]
+    container:
+      image: public.ecr.aws/n7u5u3x8/taxcat-ui-on-prem:latest
+    env:
+      NODE_ENV: development
+      DAY_OF_WEEK: 0
+      BROWSER: unknown
+    steps:
+      - name: Setup Timezone
+        run: |
+          export TZ=America/New_York
+          ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+      - name: Display Environment
+        run: echo $NODE_ENV   
+      - name: Get Day of Week
+        run: echo "DAY_OF_WEEK=$(date +'%u')" >> $GITHUB_ENV       
+      - name: Display Day of Week
+        run: echo $DAY_OF_WEEK           
+      - name: Set Edge Browser
+        if: (env.DAY_OF_WEEK == 1) || (env.DAY_OF_WEEK == 3) ||  (env.DAY_OF_WEEK == 5) || (env.DAY_OF_WEEK == 7) 
+        run: echo "BROWSER=edge" >> $GITHUB_ENV
+      - name: Set Chrome Browser
+        if: (env.DAY_OF_WEEK == 2) || (env.DAY_OF_WEEK == 4) ||  (env.DAY_OF_WEEK == 6)
+        run: echo "BROWSER=chrome" >> $GITHUB_ENV            
+      - name: Display Variables
+        run: echo "$DAY_OF_WEEK $BROWSER"
+      - name: Install Cypress Chrome prerequisites
+        if: env.BROWSER == 'chrome'
+        run: apt-get install -y libgtk2.0-0 libgtk-3-0 libgbm-dev libnotify-dev libgconf-2-4 libnss3 libxss1 libasound2 libxtst6 xauth xvfb fonts-liberation xdg-utils
+      - name: Setup Chrome
+        if: env.BROWSER == 'chrome'
+        uses: browser-actions/setup-chrome@latest
+      - name: Install Chrome
+        if: env.BROWSER == 'chrome'
+        run: wget -O /usr/src/google-chrome-stable_current_amd64.deb "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb" &&   dpkg -i /usr/src/google-chrome-stable_current_amd64.deb ;   apt-get install -f -y &&   rm -f /usr/src/google-chrome-stable_current_amd64.deb
+      - name: Install Cypress prerequisites
+        if: env.BROWSER == 'edge'
+        run: apt-get install -y libgtk2.0-0 libgtk-3-0 libgbm-dev libnotify-dev libgconf-2-4 libnss3 libxss1 libasound2 libxtst6 xauth xvfb fonts-liberation xdg-utils gnupg
+      - name: Install Edge
+        if: env.BROWSER == 'edge'
+        run: |
+          curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg
+          install -o root -g root -m 644 microsoft.gpg /etc/apt/trusted.gpg.d/
+          sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/edge stable main" > /etc/apt/sources.list.d/microsoft-edge-dev.list'
+          rm microsoft.gpg
+          apt update && apt install -y microsoft-edge-stable
+      - name: Configure Linux
+        run: echo "fs.inotify.max_user_watches=524288" >> /etc/sysctl.conf
+      - uses: actions/checkout@v2
+      - uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin' # See 'Supported distributions' for available options
+          java-version: '17'
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '16.15.0'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@vertexinc'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GIT_PACKAGE_TOKEN }}
+#       - id: install-dependencies
+#         name: Install dependencies Cypress
+#         run: |
+#           npm i -g
+      - id: install-dependencies
+        name: Install dependencies
+        uses: bahmutov/npm-install@v1
+      - name: Install dependencies (failure)
+        if: failure() && steps.install-dependencies.outcome == 'failure'
+        run: echo 'If a @vertexinc-scoped package failed to install, please ensure that the SystemTeamAutomation GitHub user has access to the repository that failed to install.  The GIT_PACKAGE_TOKEN secret (which is necessary to authorize the `npm install` command) is owned by that account and is only available to repos that that account has access to.'
+      - name: Build
+        run: npm run build:${{ env.NODE_ENV }}
+      - id: cypress-e2e-tests
+        name: Cypress end-to-end tests
+        uses: cypress-io/github-action@v2
+        with:
+          wait-on: 'https://localhost:9001/${{ github.event.repository.name }}.js'
+          wait-on-timeout: 300
+          start: npm run start:${{ env.NODE_ENV }}
+          command: npm run cypress:run:onpreme2e:${{ env.BROWSER }}:${{ env.NODE_ENV }}
+          install: false
+        env:
+          NODE_TLS_REJECT_UNAUTHORIZED: 0
+          cypress_accessKeyId: ${{ env.AWS_ACCESS_KEY_ID }}
+          cypress_secretAccessKey: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          cypress_awsSessionToken: ${{ env.AWS_SESSION_TOKEN }}

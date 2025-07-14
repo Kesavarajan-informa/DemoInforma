@@ -1,0 +1,83 @@
+name: Manual deployment workflow
+on:
+  workflow_dispatch:
+    inputs:
+      GIT_COMMIT_TO_PROMOTE:
+        description: 'Git commit SHA to promote'
+        required: true
+      ENV_TO_PROMOTE_TO:
+        description: 'Environment to promote to'
+        required: true
+      CCB_TICKET_NUMBER:
+        description: 'CCB ticket number (for a production release)'
+        required: false
+jobs:
+  manual-deploy:
+    runs-on: [self-hosted, Standard]
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-external-id: ${{ secrets.ORG_RUNNER_AWS_EXTERNALID }}
+          role-to-assume: arn:aws:iam::597123819409:role/vtx-GitHubActions
+          aws-region: us-east-2
+          role-skip-session-tagging: true
+      
+      - run: echo "Deploying commit ${{ github.event.inputs.GIT_COMMIT_TO_PROMOTE }} to the ${{ github.event.inputs.ENV_TO_PROMOTE_TO }} environment"
+      - name: Configure Linux
+        run: echo 16384 | sudo tee /proc/sys/fs/inotify/max_user_watches
+      - name: Cypress install
+        run: apt-get install -y libgtk2.0-0 libgtk-3-0 libgbm-dev libnotify-dev libgconf-2-4 libnss3 libxss1 libasound2 libxtst6 xauth xvfb fonts-liberation xdg-utils libu2f-udev
+      - uses: browser-actions/setup-chrome@latest
+      - name: Set up environment
+        run: |
+          echo "AWS_ACCESS_KEY_ID_DEVELOPMENT=${{ secrets.AWS_ACCESS_KEY_ID_DEVELOPMENT }}" >> $GITHUB_ENV
+          echo "AWS_ACCESS_KEY_ID_QA=${{ secrets.AWS_ACCESS_KEY_ID_QA }}" >> $GITHUB_ENV
+          echo "AWS_ACCESS_KEY_ID_STAGING=${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}" >> $GITHUB_ENV
+          echo "AWS_ACCESS_KEY_ID_PRODUCTION=${{ secrets.AWS_ACCESS_KEY_ID_PRODUCTION }}" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY_DEVELOPMENT=${{ secrets.AWS_SECRET_ACCESS_KEY_DEVELOPMENT }}" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY_QA=${{ secrets.AWS_SECRET_ACCESS_KEY_QA }}" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY_STAGING=${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY_PRODUCTION=${{ secrets.AWS_SECRET_ACCESS_KEY_PRODUCTION }}" >> $GITHUB_ENV
+          echo "IMPORT_MAP_DEPLOYER_USERNAME_DEVELOPMENT=${{ secrets.IMPORT_MAP_DEPLOYER_USERNAME_DEVELOPMENT }}" >> $GITHUB_ENV
+          echo "IMPORT_MAP_DEPLOYER_USERNAME_QA=${{ secrets.IMPORT_MAP_DEPLOYER_USERNAME_QA }}" >> $GITHUB_ENV
+          echo "IMPORT_MAP_DEPLOYER_USERNAME_STAGING=${{ secrets.IMPORT_MAP_DEPLOYER_USERNAME_STAGING }}" >> $GITHUB_ENV
+          echo "IMPORT_MAP_DEPLOYER_USERNAME_PRODUCTION=${{ secrets.IMPORT_MAP_DEPLOYER_USERNAME_PRODUCTION }}" >> $GITHUB_ENV
+          echo "IMPORT_MAP_DEPLOYER_PASSWORD_DEVELOPMENT=${{ secrets.IMPORT_MAP_DEPLOYER_PASSWORD_DEVELOPMENT }}" >> $GITHUB_ENV
+          echo "IMPORT_MAP_DEPLOYER_PASSWORD_QA=${{ secrets.IMPORT_MAP_DEPLOYER_PASSWORD_QA }}" >> $GITHUB_ENV
+          echo "IMPORT_MAP_DEPLOYER_PASSWORD_STAGING=${{ secrets.IMPORT_MAP_DEPLOYER_PASSWORD_STAGING }}" >> $GITHUB_ENV
+          echo "IMPORT_MAP_DEPLOYER_PASSWORD_PRODUCTION=${{ secrets.IMPORT_MAP_DEPLOYER_PASSWORD_PRODUCTION }}" >> $GITHUB_ENV
+          echo "S3_REGION_KEY=us-east-1" >> $GITHUB_ENV
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.inputs.GIT_COMMIT_TO_PROMOTE }}
+          fetch-depth: 0
+      - uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin' # See 'Supported distributions' for available options
+          java-version: '17'
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '16.15.0'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@vertexinc'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GIT_PACKAGE_TOKEN }}
+      - id: install-dependencies
+        name: Install dependencies
+        uses: bahmutov/npm-install@v1
+      - name: Install dependencies (failure)
+        if: failure() && steps.install-dependencies.outcome == 'failure'
+        run: echo 'If a @vertexinc-scoped package failed to install, please ensure that the SystemTeamAutomation GitHub user has access to the repository that failed to install.  The GIT_PACKAGE_TOKEN secret (which is necessary to authorize the `npm install` command) is owned by that account and is only available to repos that that account has access to.'
+      - name: Lint
+        run: npm run lint
+      - name: Install Chrome
+        run: wget -O /usr/src/google-chrome-stable_current_amd64.deb "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb" &&   dpkg -i /usr/src/google-chrome-stable_current_amd64.deb ;   apt-get install -f -y &&   rm -f /usr/src/google-chrome-stable_current_amd64.deb
+      - name: Build
+        run: npm run build:${{ github.event.inputs.ENV_TO_PROMOTE_TO }}
+      - name: Deploy
+        run: npx @vertexinc/vtx-ui-tools-deployment deployMicroFrontend --gitCommitSha=${{ github.event.inputs.GIT_COMMIT_TO_PROMOTE }} --ccbTicketNumber=${{ github.event.inputs.CCB_TICKET_NUMBER }}
+        env:
+          NODE_ENV: ${{ github.event.inputs.ENV_TO_PROMOTE_TO }}
+          API_TOKEN_FOR_GITHUB_APIS: ${{ secrets.GIT_PACKAGE_TOKEN }}
+

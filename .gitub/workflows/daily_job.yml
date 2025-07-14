@@ -1,0 +1,57 @@
+name: Daily Cron
+on:
+  workflow_dispatch:
+  schedule:
+    - cron:  '0 0 * * *'  # every day at midnight
+
+jobs:
+
+
+    daily-checkmarx-security-check-develop:
+        runs-on: [self-hosted, Standard]
+        timeout-minutes: 30
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v3
+              with:
+                ref: main
+                
+            - name: Java setup
+              uses: actions/setup-java@v3
+              with:
+                distribution: 'corretto'
+                java-version: '17'
+                
+            # Having Virus.csv breaks this since it triggers Checkmarx's anti-virus
+            - name: Deleting Virus.csv
+              run: rm cypress/fixtures/Virus.csv
+
+            - name: Checkmarx CxFlow Action
+              uses: checkmarx-ts/checkmarx-cxflow-github-action@v1.7
+              with:
+                  project: vtx-ui-mf-taxcat
+                  team: /CxServer/CSE/TaxCat
+                  checkmarx_url: ${{ secrets.CHECKMARX_URL }}
+                  checkmarx_username: ${{ secrets.CHECKMARX_USERNAME }}
+                  checkmarx_password: ${{ secrets.CHECKMARX_PASSWORD }}
+                  checkmarx_client_secret: ${{ secrets.CHECKMARX_CLIENT_SECRET }}
+                  sca_tenant: ${{ secrets.CHECKMARX_SCA_TENANT_NAME }}
+                  sca_username: ${{ secrets.CHECKMARX_SCA_USERNAME }}
+                  sca_password: ${{ secrets.CHECKMARX_SCA_PASSWORD }}
+                  bug_tracker: Json
+                  break_build: true
+                  incremental: false
+                  scanners: sast
+                  params: --namespace=${{ github.repository_owner }} --repo-name=${{ github.event.repository.name }} --branch=${{ github.ref }} --exclude-folders=test --json.file-name-format=[TEAM]-[PROJECT].json --json.data-folder
+
+            - name: Create Jira Ticket
+              if: always()
+              uses: vertexinc/jira-automation/.github/actions/checkmarx-securewatch-action@v1
+              with:
+                    jira_project_key: TCCML
+                    jira_repo_url: https://github.com/vertexinc/vtx-ui-mf-taxcat/tree/main
+                    jira_email: ${{ secrets.VTX_JIRA_SERVICE_ACT_NAME }}
+                    jira_api_token: ${{ secrets.VTX_JIRA_SERVICE_ACT_API_TOKEN }}
+                    jira_target_app: TaxCat-master
+                    checkmarx_response_file: _CxServer_CSE_TaxCat-vtx-ui-mf-taxcat.json
