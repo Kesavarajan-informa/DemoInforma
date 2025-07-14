@@ -10,8 +10,11 @@ jobs:
         uses: actions/checkout@v4
       # Install npm dependencies, cache them correctly
       # and run all Cypress tests
+      - name: Install dependencies
+        run: npm install
+        
       - name: Cypress run
         uses: cypress-io/github-action@v6
         with:
-          build: npm run build
-          start: npm start
+          start: npm run test:allure
+          working-directory: apps/frontend/my-new-app-e2e
