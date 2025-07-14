@@ -13,8 +13,9 @@ jobs:
       - name: Install dependencies
         run: npm install
         
-      - name: Cypress run
+      - name: Run Cypresss from automation folder
         uses: cypress-io/github-action@v6
         with:
-          start: npm run test:allure
           working-directory: apps/frontend/my-new-app-e2e
+          start: npm run test:allure
+          
