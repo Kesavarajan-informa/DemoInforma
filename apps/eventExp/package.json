@@ -1,6 +1,6 @@
 {
   "name": "@org-informa/eventExp",
-  "version":"0.0.1",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "scripts": {},
@@ -18,5 +18,10 @@
     "@types/node": "^20.0.0",
     "@types/react": "19.0.0",
     "@types/react-dom": "19.0.0"
+  },
+  "nx": {
+    "tags": [
+      "scope:admin"
+    ]
   }
 }
