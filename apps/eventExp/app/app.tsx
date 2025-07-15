@@ -6,7 +6,6 @@ export function App() {
     <div>
       <NxWelcome title="@org-informa/eventExp" />
       <LoginPage />
-      <p>Adding line to check affected projects list</p>
     </div>
   );
 }
