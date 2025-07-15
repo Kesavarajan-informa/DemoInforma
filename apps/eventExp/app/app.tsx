@@ -6,6 +6,7 @@ export function App() {
     <div>
       <NxWelcome title="@org-informa/eventExp" />
       <LoginPage />
+      <p>New line of code added for demo</p>
     </div>
   );
 }
