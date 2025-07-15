@@ -1,18 +1,34 @@
-import { nxE2EPreset } from '@nx/cypress/plugins/cypress-preset';
 import { defineConfig } from 'cypress';
-
+import createBundler from '@bahmutov/cypress-esbuild-preprocessor';
+import { createEsbuildPlugin } from '@badeball/cypress-cucumber-preprocessor/esbuild';
+import allureWriter from '@shelex/cypress-allure-plugin/writer';
+import { addCucumberPreprocessorPlugin } from '@badeball/cypress-cucumber-preprocessor';
+ 
 export default defineConfig({
   e2e: {
-    ...nxE2EPreset(__filename, {
-      cypressDir: 'src',
-      bundler: 'vite',
-      webServerCommands: {
-        default: 'npx nx run @org-informa/my-new-app:dev',
-        production: 'npx nx run @org-informa/my-new-app:preview',
-      },
-      ciWebServerCommand: 'npx nx run @org-informa/my-new-app:preview',
-      ciBaseUrl: 'http://localhost:4300',
-    }),
-    baseUrl: 'http://localhost:4200',
+    setupNodeEvents: async (on, config) => {
+      await addCucumberPreprocessorPlugin(on, config);
+      allureWriter(on, config);
+      on("file:preprocessor", createBundler({
+        plugins: [createEsbuildPlugin(config)],
+      }));
+      return config;
+    },
+    env: {
+      allure: true,
+      allureReuseAfterSpec: true
+    },
+    specPattern: "src/e2e/features/**/*.feature",
+    supportFile: "src/support/e2e.ts",
+    baseUrl: "https://visitcloud.com/", // Change as needed
   },
+  video: true,
+  videosFolder: 'cypress/videos',
+  // reporter: 'mochawesome',
+  // reporterOptions: {
+  //   reportDir: 'cypress/results',
+  //   overwrite: true,
+  //   json: true,
+  //   html: false
+  // }
 });

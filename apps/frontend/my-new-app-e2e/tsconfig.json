@@ -1,26 +1,57 @@
 {
+
   "extends": "../../../tsconfig.base.json",
+
   "compilerOptions": {
+
     "outDir": "out-tsc/cypress",
+
     "allowJs": true,
+
     "types": ["cypress", "node"],
-    "sourceMap": false
+
+    "sourceMap": false,
+
+    "allowSyntheticDefaultImports": true,       // avoids writer_1.default errors
+
+    "esModuleInterop": true  
+
   },
+
   "include": [
+
     "**/*.ts",
+
     "**/*.js",
+
     "cypress.config.ts",
+
     "**/*.cy.ts",
+
     "**/*.cy.tsx",
+
     "**/*.cy.js",
+
     "**/*.cy.jsx",
+
     "**/*.d.ts"
+, "src/support/step_definitions/login.cy.ts"
   ],
+
   "exclude": [
+
     "out-tsc",
+
     "test-output",
+
     "eslint.config.js",
+
     "eslint.config.cjs",
+
     "eslint.config.mjs"
+
   ]
+
 }
+
+ 

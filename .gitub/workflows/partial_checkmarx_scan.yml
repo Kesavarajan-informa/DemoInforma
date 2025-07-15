@@ -1,0 +1,35 @@
+name: 'Partial Checkmarx Scan'
+
+on:
+  schedule:
+    - cron: '27 10 * * *'
+    # GitHub recommends that you try to schedule tasks at
+    #   non-peak times to avoid delays
+
+concurrency: checkmarx
+
+jobs:   
+ checkmarx-security-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        
+      # Having Virus.csv breaks this since it triggers Checkmarx's anti-virus
+      - name: Deleting Virus.csv from container
+        run: rm cypress/fixtures/Virus.csv
+      
+      - name: Checkmarx CxFlow Action
+        uses: checkmarx-ts/checkmarx-cxflow-github-action@v1.1
+        with:
+          project: vtx-ui-mf-taxcat
+          team: /CxServer/CSE/TaxCat
+          checkmarx_url: ${{ secrets.CHECKMARX_URL }}
+          checkmarx_username: ${{ secrets.CHECKMARX_USERNAME }}
+          checkmarx_password: ${{ secrets.CHECKMARX_PASSWORD }}
+          checkmarx_client_secret: ${{ secrets.cHECKMARX_CLIENT_SECRET }}
+          break_build: false
+          incremental: false
+          scanners: sast
+          # For Jira integration
+          params: --namespace=${{ github.repository_owner }} --repo-name=${{ github.event.repository.name }} --branch=${{ github.ref }} --exclude-folders=test_automation 

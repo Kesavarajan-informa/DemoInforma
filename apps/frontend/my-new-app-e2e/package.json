@@ -2,6 +2,12 @@
   "name": "@org-informa/my-new-app-e2e",
   "version": "2.0.0",
   "private": true,
+  "scripts": {
+    "cy:run": "cypress run",
+    "allure:generate": "node scripts/generate-allure.js",
+    "test:allure": "npm run cy:run && npm run allure:generate",
+    "allure:open": "allure open allure-report"
+  },
   "nx": {
     "implicitDependencies": [
       "@org-informa/my-new-app"
