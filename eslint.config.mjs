@@ -25,8 +25,7 @@ export default [
             {
               sourceTag: '*',
               onlyDependOnLibsWithTags: ['*'],
-            },
-            
+            },            
           ],
         },
       ],

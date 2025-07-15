@@ -43,6 +43,8 @@ export function App() {
         />
       </Routes>
       {/* END: routes */}
+
+      <p>Adding line to check affected projects list</p>
     </div>
   );
 }
