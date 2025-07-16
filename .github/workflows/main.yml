@@ -25,12 +25,17 @@ jobs:
       
       - name: Generate Allure Reports
         run: node apps/frontend/my-new-app-e2e/scripts/generate-allure.js
+        shell: bash
+        timeout-minutes: 2
 
       - name: Upload Allure Report
         uses: actions/upload-artifact@v4
         with:
            name: allure-report
            path: apps/frontend/my-new-app-e2e/allure-report
+
+      - name: Exit after upload
+        run: exit 0
         
           
           
