@@ -19,6 +19,6 @@ jobs:
       - name: Run Cypresss from automation folder
         uses: cypress-io/github-action@v6
         with:
-          start: npx cypress run --config-file=$(pwd)/apps/frontend/my-new-app-e2e/cypress.config.ts
+          start: npx cypress run --config-file=apps/frontend/my-new-app-e2e/cypress.config.ts
           
           
