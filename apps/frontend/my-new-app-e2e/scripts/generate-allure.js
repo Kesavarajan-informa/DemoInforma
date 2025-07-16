@@ -43,8 +43,8 @@ function getLastReportFolder() {
 }
 function runAllureGeneration() {
     var timestamp = getTimestamp();
-    var baseResults = 'allure-results';
-    var baseReports = 'allure-report';
+    var baseResults = 'apps/frontend/my-new-app-e2e/allure-results';
+    var baseReports = 'apps/frontend/my-new-app-e2e/allure-report';
     // Move results to timestamped folder
     var resultDir = moveResultsToTimestampedFolder(baseResults, timestamp);
     var reportDir = path.join(baseReports, timestamp);
