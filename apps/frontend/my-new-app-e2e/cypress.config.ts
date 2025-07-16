@@ -18,12 +18,12 @@ export default defineConfig({
       allure: true,
       allureReuseAfterSpec: true
     },
-    specPattern: "src/e2e/features/**/*.feature",
-    supportFile: "src/support/e2e.ts",
+    specPattern: "apps/frontend/my-new-app-e2e/src/e2e/features/**/*.feature",
+    supportFile: "apps/frontend/my-new-app-e2e/src/support/e2e.ts",
     baseUrl: "https://visitcloud.com/", // Change as needed
   },
   video: true,
-  videosFolder: 'cypress/videos',
+  videosFolder: 'apps/frontend/my-new-app-e2e/cypress/videos',
   // reporter: 'mochawesome',
   // reporterOptions: {
   //   reportDir: 'cypress/results',
