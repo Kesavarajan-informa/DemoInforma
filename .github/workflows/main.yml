@@ -20,6 +20,9 @@ jobs:
         run: |
           npx ts-node --project apps/frontend/my-new-app-e2e/tsconfig.json node_modules/.bin/cypress run --config-file=apps/frontend/my-new-app-e2e/cypress.config.ts
 
+      - name: Install Allure CLI
+        run: npm install -g allure-commandline --save-dev
+      
       - name: Generate Allure Reports
         run: node apps/frontend/my-new-app-e2e/scripts/generate-allure.js
         
