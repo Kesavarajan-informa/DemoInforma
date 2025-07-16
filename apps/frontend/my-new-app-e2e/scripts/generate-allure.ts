@@ -70,3 +70,4 @@ function runAllureGeneration() {
 }
  
 runAllureGeneration();
+process.exit(0)
