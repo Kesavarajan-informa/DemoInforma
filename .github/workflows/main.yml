@@ -22,5 +22,6 @@ jobs:
 
       - name: Generate Allure Reports
         run: npm run allure:generate
+        
           
           
