@@ -24,9 +24,8 @@ jobs:
         run: npm install -g allure-commandline --save-dev
       
       - name: Generate Allure Reports
-        run: node apps/frontend/my-new-app-e2e/scripts/generate-allure.js
-        shell: bash
-        timeout-minutes: 2
+        run: |
+          npx allure generate apps/frontend/my-new-app-e2e/allure-results --clean -o apps/frontend/my-new-app-e2e/allure-report
 
       - name: Upload Allure Report
         uses: actions/upload-artifact@v4
