@@ -60,3 +60,4 @@ function runAllureGeneration() {
     (0, child_process_1.execSync)("allure open ".concat(reportDir));
 }
 runAllureGeneration();
+process.exit(0)
