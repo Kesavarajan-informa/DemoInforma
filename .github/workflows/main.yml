@@ -21,7 +21,7 @@ jobs:
           npx ts-node --project apps/frontend/my-new-app-e2e/tsconfig.json node_modules/.bin/cypress run --config-file=apps/frontend/my-new-app-e2e/cypress.config.ts
 
       - name: Generate Allure Reports
-        run: npm run allure:generate
+        run: node apps/frontend/my-new-app-e2e/scripts/generate-allure.js
         
           
           
