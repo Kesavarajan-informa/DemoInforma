@@ -14,11 +14,11 @@ jobs:
         run: npm install
         
       - name: Install Typescript if using .ts config
-        run: npm install -g typescript
+        run: npm install --save-dev ts-node typescript
         
       - name: Run Cypresss from automation folder
-        uses: cypress-io/github-action@v6
-        with:
-          start: npx cypress run --config-file=apps/frontend/my-new-app-e2e/cypress.config.ts
+        run: |
+          export TS_NODE_PROJECT=apps/frontend/my-new-app-e2e/tsconfig.json
+          npx cypress run --config-file=apps/frontend/my-new-app-e2e/cypress.config.ts
           
           
