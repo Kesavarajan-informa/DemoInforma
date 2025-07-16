@@ -3,6 +3,7 @@
 class LoginPage{
 
      getUrl(){
+       cy.wait(12000);
         return cy.visit('https://visitcloud.com/')
     }
 
