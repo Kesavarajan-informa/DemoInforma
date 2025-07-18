@@ -5,36 +5,48 @@ on: push
 jobs:
   cypress-run:
     runs-on: ubuntu-24.04
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      # Install npm dependencies, cache them correctly
-      # and run all Cypress tests
+
       - name: Install dependencies
         run: npm install
-        
-      - name: Install Typescript if using .ts config
+
+      - name: Install TypeScript if using .ts config
         run: npm install --save-dev ts-node typescript
-        
-      - name: Run Cypresss from automation folder
+
+      - name: Run Cypress from automation folder
         run: |
           npx ts-node --project apps/frontend/my-new-app-e2e/tsconfig.json node_modules/.bin/cypress run --config-file=apps/frontend/my-new-app-e2e/cypress.config.ts
 
       - name: Install Allure CLI
         run: npm install -g allure-commandline --save-dev
-      
+
       - name: Generate Allure Reports
         run: |
           npx allure generate apps/frontend/my-new-app-e2e/allure-results --clean -o apps/frontend/my-new-app-e2e/allure-report
 
-      - name: Upload Allure Report
+      - name: Upload Allure Report as Artifact
         uses: actions/upload-artifact@v4
         with:
-           name: allure-report
-           path: apps/frontend/my-new-app-e2e/allure-report
+          name: allure-report
+          path: apps/frontend/my-new-app-e2e/allure-report
+
+      - name: Upload Cypress Videos
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-videos
+          path: apps/frontend/my-new-app-e2e/cypress/videos
+
+      - name: Deploy Allure Report to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./apps/frontend/my-new-app-e2e/allure-report
+          publish_branch: gh-pages
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
 
       - name: Exit after upload
         run: exit 0
-        
-          
-          
